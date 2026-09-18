@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 // MARK: - Block model & parser
@@ -164,264 +163,100 @@ enum MarkdownParser {
     }
 }
 
-// MARK: - Rendering
+// MARK: - Single-AttributedString renderer
 
-struct MarkdownView: View {
-    /// Code blocks larger than this are shown as a file card instead of inline.
-    static let inlineCodeCharLimit = 1500
-    static let inlineCodeLineLimit = 50
-    /// Prose blocks larger than this render via NSTextView — SwiftUI `Text` spins on
-    /// attribute/line-break enumeration for large attributed strings.
-    static let inlineTextCharLimit = 2000
-    /// Whole messages larger than this (by chars or block count) render via one native
-    /// text view instead of many SwiftUI `Text`s, which don't scale.
-    static let fastPathCharLimit = 6000
-    static let fastPathBlockLimit = 40
+/// Renders lightweight Markdown into ONE `AttributedString`, so a message is a single
+/// cheap `Text` — never many attributed Text views. This is the core of the hang fix:
+/// no per-block SwiftUI views, no materials, no NSViewRepresentables, no selection
+/// overlays in the scrolling `List`.
+func attributedMarkdown(_ text: String) -> AttributedString {
+    var out = AttributedString()
 
-    private let rawText: String
-    private let blocks: [MarkdownBlock]
-    private let onOpenFile: (CodeFile) -> Void
+    let codeBackground = Color.gray.opacity(0.18)
 
-    init(text: String, onOpenFile: @escaping (CodeFile) -> Void = { _ in }) {
-        let start = Date()
-        let parsed = MarkdownParser.parse(text)
-        rawText = text
-        blocks = parsed
-        self.onOpenFile = onOpenFile
-        let fastPath = text.count > Self.fastPathCharLimit || parsed.count > Self.fastPathBlockLimit
-        let ms = Date().timeIntervalSince(start) * 1000
-        Log.render("markdown parse: \(text.count) chars → \(parsed.count) blocks fastPath=\(fastPath) in \(String(format: "%.1f", ms)) ms")
-    }
-
-    private var useFastPath: Bool {
-        rawText.count > Self.fastPathCharLimit || blocks.count > Self.fastPathBlockLimit
-    }
-
-    var body: some View {
-        if useFastPath {
-            largeFallback
-        } else {
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(blocks) { block in
-                    view(for: block)
-                }
-            }
-        }
-    }
-
-    /// A plain, truncated preview for very long responses. Rendered with a single plain
-    /// SwiftUI `Text` (no NSViewRepresentable, which loops inside a LazyVStack) — the full
-    /// text opens in the side panel.
-    private var largeFallback: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(preview)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 8) {
-                Label("Long response · \(rawText.count) chars", systemImage: "doc.plaintext")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button {
-                    onOpenFile(CodeFile(name: "response.md", language: "markdown", content: rawText))
-                } label: {
-                    Label("Open full response", systemImage: "arrow.up.right.square").font(.caption)
-                }
-                .buttonStyle(.borderless)
-            }
-        }
-        .frame(maxWidth: 640, alignment: .leading)
-    }
-
-    private var preview: String {
-        let limit = 2500
-        return rawText.count > limit ? String(rawText.prefix(limit)) + "\n…" : rawText
-    }
-
-    @ViewBuilder
-    private func view(for block: MarkdownBlock) -> some View {
-        switch block.kind {
-        case let .paragraph(text):
-            if text.count > Self.inlineTextCharLimit {
-                // Plain (single-run) text avoids the costly attributed-string metrics.
-                Text(text)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                Text(inline(text))
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-        case let .heading(level, text):
-            Text(inline(text))
-                .font(headingFont(level))
-                .textSelection(.enabled)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 2)
-
-        case let .code(code, language):
-            if code.count > Self.inlineCodeCharLimit || lineCount(code) > Self.inlineCodeLineLimit {
-                FileCardView(
-                    file: CodeFile(name: suggestedFileName(language: language), language: language, content: code),
-                    onOpen: onOpenFile
-                )
-            } else {
-                CodeBlockView(code: code, language: language)
-            }
-
-        case let .bullet(items):
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-                    HStack(alignment: .top, spacing: 8) {
-                        Text("•")
-                        Text(inline(item)).fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-            }
-
-        case let .ordered(items):
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(Array(items.enumerated()), id: \.offset) { offset, item in
-                    HStack(alignment: .top, spacing: 8) {
-                        Text("\(offset + 1).").monospacedDigit().foregroundStyle(.secondary)
-                        Text(inline(item)).fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-            }
-
-        case let .quote(text):
-            HStack(spacing: 8) {
-                RoundedRectangle(cornerRadius: 2).fill(.secondary).frame(width: 3)
-                Text(text.count > Self.inlineTextCharLimit ? AttributedString(text) : inline(text))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-        case .rule:
-            Divider()
-
-        case let .image(alt, url):
-            MarkdownImage(alt: alt, urlString: url)
-        }
-    }
-
-    private func inline(_ string: String) -> AttributedString {
-        (try? AttributedString(
+    func inline(_ string: String) -> AttributedString {
+        var a = (try? AttributedString(
             markdown: string,
             options: .init(
                 interpretedSyntax: .inlineOnlyPreservingWhitespace,
                 failurePolicy: .returnPartiallyParsedIfPossible
             )
         )) ?? AttributedString(string)
-    }
-
-    private func headingFont(_ level: Int) -> Font {
-        switch level {
-        case 1: return .title2.weight(.bold)
-        case 2: return .title3.weight(.bold)
-        case 3: return .headline
-        default: return .subheadline.weight(.semibold)
+        // Style inline `code` spans: monospaced on a subtle background.
+        for run in a.runs where run.inlinePresentationIntent?.contains(.code) == true {
+            a[run.range].font = .system(.body, design: .monospaced)
+            a[run.range].backgroundColor = codeBackground
         }
+        return a
     }
 
-    private func lineCount(_ string: String) -> Int {
-        string.reduce(1) { $1 == "\n" ? $0 + 1 : $0 }
+    func gap() {
+        if !out.characters.isEmpty { out += AttributedString("\n\n") }
     }
-}
 
-struct CodeBlockView: View {
-    let code: String
-    let language: String?
-    @State private var copied = false
+    for block in MarkdownParser.parse(text) {
+        switch block.kind {
+        case let .paragraph(t):
+            gap()
+            out += inline(t)
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text((language?.isEmpty == false ? language! : "code").lowercased())
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button(action: copy) {
-                    Label(copied ? "Copied" : "Copy",
-                          systemImage: copied ? "checkmark" : "doc.on.doc")
-                        .font(.caption)
-                }
-                .buttonStyle(.borderless)
+        case let .heading(level, t):
+            gap()
+            var h = inline(t)
+            let size: CGFloat = level <= 1 ? 22 : (level == 2 ? 19 : 16)
+            h.font = .system(size: size, weight: .bold)
+            out += h
+
+        case let .code(code, language):
+            gap()
+            if let language, !language.isEmpty {
+                var caption = AttributedString(language.lowercased())
+                caption.font = .caption2.weight(.semibold)
+                caption.foregroundColor = .secondary
+                out += caption
+                out += AttributedString("\n")
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(.quaternary)
+            var c = AttributedString(code)
+            c.font = .system(.callout, design: .monospaced)
+            c.backgroundColor = codeBackground
+            out += c
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                Text(code)
-                    .font(.system(.callout, design: .monospaced))
-                    .textSelection(.enabled)
-                    .padding(10)
+        case let .bullet(items):
+            gap()
+            for (i, item) in items.enumerated() {
+                if i > 0 { out += AttributedString("\n") }
+                out += AttributedString("•  ")
+                out += inline(item)
             }
-        }
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.6))
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(.quaternary)
-        )
-    }
 
-    private func copy() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(code, forType: .string)
-        copied = true
-        Task {
-            try? await Task.sleep(for: .seconds(1.6))
-            copied = false
-        }
-    }
-}
-
-struct MarkdownImage: View {
-    let alt: String
-    let urlString: String
-
-    var body: some View {
-        if let nsImage = dataImage {
-            frame(Image(nsImage: nsImage))
-        } else if let url = URL(string: urlString), url.scheme == "http" || url.scheme == "https" {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .empty:
-                    ProgressView().frame(maxWidth: .infinity, minHeight: 80)
-                case let .success(image):
-                    frame(image)
-                case .failure:
-                    fallback
-                @unknown default:
-                    fallback
-                }
+        case let .ordered(items):
+            gap()
+            for (i, item) in items.enumerated() {
+                if i > 0 { out += AttributedString("\n") }
+                out += AttributedString("\(i + 1).  ")
+                out += inline(item)
             }
-        } else {
-            fallback
+
+        case let .quote(t):
+            gap()
+            var q = inline(t)
+            q.foregroundColor = .secondary
+            out += q
+
+        case .rule:
+            gap()
+            var r = AttributedString("──────────")
+            r.foregroundColor = .secondary
+            out += r
+
+        case let .image(alt, url):
+            gap()
+            var img = AttributedString("🖼  " + (alt.isEmpty ? url : alt))
+            img.foregroundColor = .accentColor
+            if let link = URL(string: url) { img.link = link }
+            out += img
         }
     }
 
-    private var dataImage: NSImage? {
-        guard urlString.hasPrefix("data:"),
-              let comma = urlString.firstIndex(of: ","),
-              let data = Data(base64Encoded: String(urlString[urlString.index(after: comma)...]))
-        else { return nil }
-        return NSImage(data: data)
-    }
-
-    private func frame(_ image: Image) -> some View {
-        image
-            .resizable()
-            .scaledToFit()
-            .frame(maxWidth: 440, maxHeight: 360, alignment: .leading)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(.quaternary))
-    }
-
-    private var fallback: some View {
-        Label(alt.isEmpty ? urlString : alt, systemImage: "photo")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-    }
+    return out
 }

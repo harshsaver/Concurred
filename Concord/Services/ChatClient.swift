@@ -6,22 +6,44 @@ struct ChatClient: Sendable {
     enum ClientError: LocalizedError {
         case invalidResponse
         case http(status: Int, message: String)
+        case api(String)
 
         var errorDescription: String? {
             switch self {
             case .invalidResponse:
                 return "The server returned an unexpected response."
+            case let .api(message):
+                return message
             case let .http(status, message):
+                let clean = Self.cleanMessage(from: message)
                 switch status {
-                case 401: return "Invalid or missing API key (401). Check it in Settings."
-                case 402: return "Payment required — check your account credit (402)."
-                case 404: return "Model not found (404). Check the model ID."
-                case 429: return "Rate limited — please slow down and try again (429)."
+                case 401: return "Invalid or missing API key. Check it in Settings."
+                case 402: return "Payment required — check your account credit."
+                case 404: return clean.isEmpty ? "Model not found. Check the model ID." : clean
+                case 429: return "Rate limited — please slow down and try again."
+                case 500, 502, 503, 504:
+                    return clean.isEmpty
+                        ? "The provider is temporarily unavailable. Try again, or switch model/provider."
+                        : clean
                 default:
-                    let detail = message.trimmingCharacters(in: .whitespacesAndNewlines).prefix(300)
-                    return detail.isEmpty ? "Request failed (\(status))." : "Request failed (\(status)). \(detail)"
+                    return clean.isEmpty ? "Request failed (\(status))." : clean
                 }
             }
+        }
+
+        /// Pulls the human-readable message out of an OpenAI-style error body
+        /// (`{"error":{"message":"…"}}`), dropping request-id noise — instead of dumping raw JSON.
+        static func cleanMessage(from body: String) -> String {
+            if let data = body.data(using: .utf8),
+               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let error = object["error"] as? [String: Any],
+               let message = error["message"] as? String {
+                if let range = message.range(of: " (request id:") {
+                    return String(message[..<range.lowerBound])
+                }
+                return message
+            }
+            return String(body.trimmingCharacters(in: .whitespacesAndNewlines).prefix(200))
         }
     }
 
@@ -41,7 +63,7 @@ struct ChatClient: Sendable {
 
     /// Fetches the live model catalog.
     func listModels() async throws -> [String] {
-        let (data, response) = try await URLSession.shared.data(for: makeRequest(path: "models"))
+        let (data, response) = try await NetworkConfig.session().data(for: makeRequest(path: "models"))
         guard let http = response as? HTTPURLResponse else { throw ClientError.invalidResponse }
         guard (200 ..< 300).contains(http.statusCode) else {
             throw ClientError.http(status: http.statusCode, message: String(data: data, encoding: .utf8) ?? "")
@@ -61,7 +83,7 @@ struct ChatClient: Sendable {
                         ChatRequest(model: model, messages: messages, stream: true)
                     )
 
-                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
+                    let (bytes, response) = try await NetworkConfig.session().bytes(for: request)
                     guard let http = response as? HTTPURLResponse else {
                         throw ClientError.invalidResponse
                     }
@@ -76,11 +98,16 @@ struct ChatClient: Sendable {
                         let payload = line.dropFirst("data:".count)
                             .trimmingCharacters(in: .whitespaces)
                         if payload == "[DONE]" { break }
-                        guard let data = payload.data(using: .utf8),
-                              let chunk = try? JSONDecoder().decode(StreamChunk.self, from: data),
-                              let delta = chunk.choices.first?.delta.content
-                        else { continue }
-                        continuation.yield(delta)
+                        guard let data = payload.data(using: .utf8) else { continue }
+                        // Some gateways deliver errors in-band (HTTP 200 + SSE error event).
+                        if let envelope = try? JSONDecoder().decode(StreamErrorEnvelope.self, from: data),
+                           let message = envelope.error?.message {
+                            throw ClientError.api(message)
+                        }
+                        if let chunk = try? JSONDecoder().decode(StreamChunk.self, from: data),
+                           let delta = chunk.choices.first?.delta.content {
+                            continuation.yield(delta)
+                        }
                     }
                     continuation.finish()
                 } catch {

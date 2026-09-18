@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Sheet wrapper presented from the home screen's gear button.

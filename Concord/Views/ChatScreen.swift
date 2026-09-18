@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// A provider's workspace: a sidebar of saved chats next to the active chat.
@@ -145,12 +146,20 @@ struct ConversationRow: View {
 
 // MARK: - Chat detail
 
+/// Which right-side inspector panel is currently shown on the chat page.
+enum ChatPanel {
+    case altID
+    case network
+}
+
 struct ChatDetail: View {
+    @Environment(AppStore.self) private var appStore
     @State private var vm: ChatViewModel
     let provider: Provider
 
     @State private var showModelEntry = false
     @State private var modelDraft = ""
+    @State private var activePanel: ChatPanel?
 
     init(provider: Provider, apiKey: String, conversationID: Conversation.ID, store: ConversationStore) {
         self.provider = provider
@@ -160,11 +169,6 @@ struct ChatDetail: View {
     }
 
     private let bottomAnchor = "bottom-anchor"
-    @State private var openFile: CodeFile?
-
-    private var inspectorPresented: Binding<Bool> {
-        Binding(get: { openFile != nil }, set: { if !$0 { openFile = nil } })
-    }
 
     var body: some View {
         @Bindable var vm = vm
@@ -177,20 +181,48 @@ struct ChatDetail: View {
         }
         .toolbar {
             ToolbarItem(placement: .principal) { modelPicker }
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button { activePanel = .altID } label: {
+                    Label("Cloak / Alt ID", systemImage: "person.badge.shield.checkmark")
+                }
+                .help("Alt ID & Cloak")
+
+                Button { activePanel = .network } label: {
+                    Label("Network", systemImage: "network")
+                }
+                .help("Network settings")
+
+                Button { appStore.showSettings = true } label: {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                .help("API keys & settings")
+            }
         }
-        .task { await vm.loadModels() }
         .inspector(isPresented: inspectorPresented) {
-            Group {
-                if let file = openFile {
-                    FileDetailView(file: file) { openFile = nil }
-                } else {
-                    Text("No file open")
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+            VStack(spacing: 0) {
+                HStack {
+                    Spacer()
+                    Button { activePanel = nil } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Close")
+                }
+                .padding(10)
+
+                Group {
+                    switch activePanel {
+                    case .altID: AltIDPanel()
+                    case .network: NetworkPanel()
+                    case nil: Color.clear
+                    }
                 }
             }
-            .inspectorColumnWidth(min: 340, ideal: 520, max: 900)
+            .inspectorColumnWidth(min: 320, ideal: 400, max: 640)
         }
+        .task { await vm.loadModels() }
         .alert("Model ID", isPresented: $showModelEntry) {
             TextField("provider/model-id", text: $modelDraft)
             Button("Use") { vm.selectModel(modelDraft) }
@@ -198,6 +230,15 @@ struct ChatDetail: View {
         } message: {
             Text("Enter any model ID served by \(provider.name). It's sent verbatim as the model — e.g. openai/gpt-4o-mini or obsidian/Qwen3.8-27B. The provider validates it when you send.")
         }
+    }
+
+    /// Drives the single `.inspector`: presented whenever a panel is selected, and
+    /// clearing the selection on dismiss.
+    private var inspectorPresented: Binding<Bool> {
+        Binding(
+            get: { activePanel != nil },
+            set: { if !$0 { activePanel = nil } }
+        )
     }
 
     private var modelPicker: some View {
@@ -236,28 +277,38 @@ struct ChatDetail: View {
 
     private var transcript: some View {
         ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 14) {
-                    if vm.messages.isEmpty {
-                        EmptyChatView(provider: provider).padding(.top, 64)
-                    }
-                    ForEach(vm.messages) { message in
-                        MessageRow(
-                            message: message,
-                            tint: provider.tint,
-                            isLive: vm.isStreaming
-                                && message.role == .assistant
-                                && message.id == vm.messages.last?.id,
-                            onOpenFile: { openFile = $0 }
-                        )
-                        .id(message.id)
-                    }
-                    Color.clear.frame(height: 1).id(bottomAnchor)
+            // A List (NSTableView-backed) virtualizes rows properly and avoids the
+            // LazyVStack layout loop that was spinning on scroll.
+            List {
+                if vm.messages.isEmpty {
+                    EmptyChatView(provider: provider)
+                        .padding(.top, 64)
+                        .frame(maxWidth: .infinity)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
                 }
-                .padding(20)
-                .frame(maxWidth: .infinity)
+                ForEach(vm.messages) { message in
+                    MessageRow(
+                        message: message,
+                        tint: provider.tint,
+                        isLive: vm.isStreaming
+                            && message.role == .assistant
+                            && message.id == vm.messages.last?.id
+                    )
+                    .id(message.id)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 7, leading: 20, bottom: 7, trailing: 20))
+                    .listRowBackground(Color.clear)
+                }
+                Color.clear.frame(height: 1)
+                    .id(bottomAnchor)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
             }
-            // Plain (non-animated) scroll while streaming keeps the main thread free.
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
             .onChange(of: vm.messages.last?.text) {
                 proxy.scrollTo(bottomAnchor, anchor: .bottom)
             }
@@ -270,6 +321,20 @@ struct ChatDetail: View {
     private var inputBar: some View {
         @Bindable var vm = vm
         return HStack(alignment: .bottom, spacing: 10) {
+            Toggle(isOn: $vm.groundWithSearch) {
+                Label("Ground", systemImage: "globe")
+            }
+            .toggleStyle(.checkbox)
+            .help("Ground answers in live web search (TinyFish)")
+            .padding(.bottom, 6)
+
+            Toggle(isOn: $vm.cloak) {
+                Label("Cloak", systemImage: "eye.slash")
+            }
+            .toggleStyle(.checkbox)
+            .help("Swap your real info for your Alt ID before sending")
+            .padding(.bottom, 6)
+
             TextField("Message \(provider.name)…", text: $vm.input, axis: .vertical)
                 .textFieldStyle(.plain)
                 .lineLimit(1 ... 6)
@@ -314,7 +379,6 @@ struct MessageRow: View {
     /// True only for the assistant message that is currently streaming — rendered as
     /// plain text so we don't re-parse Markdown on every token.
     var isLive: Bool = false
-    var onOpenFile: (CodeFile) -> Void = { _ in }
 
     /// While streaming we show only the tail of very long output, so a single growing
     /// `Text` can't blow up layout cost. The full text is kept in the model.
@@ -328,12 +392,44 @@ struct MessageRow: View {
             : message.text
     }
 
+    @State private var copied = false
+
     var body: some View {
-        HStack {
+        HStack(alignment: .top) {
             if isUser { Spacer(minLength: 48) }
-            bubble
+            VStack(alignment: isUser ? .trailing : .leading, spacing: 3) {
+                bubble
+                if !message.text.isEmpty, !isLive {
+                    Button(action: copyMessage) {
+                        Label(copied ? "Copied" : "Copy",
+                              systemImage: copied ? "checkmark" : "doc.on.doc")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Copy this message")
+                    .padding(isUser ? .trailing : .leading, 2)
+                }
+            }
             if !isUser { Spacer(minLength: 48) }
         }
+    }
+
+    private func copyMessage() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(message.text, forType: .string)
+        copied = true
+        Task {
+            try? await Task.sleep(for: .seconds(1.6))
+            copied = false
+        }
+    }
+
+    /// Cap what any single row draws so scrolling stays cheap.
+    private var displayText: String {
+        let text = isLive ? streamingText : message.text
+        let cap = 8000
+        return text.count > cap ? String(text.prefix(cap)) + "…" : text
     }
 
     @ViewBuilder private var bubble: some View {
@@ -342,29 +438,30 @@ struct MessageRow: View {
                 .controlSize(.small)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .frame(maxWidth: 640, alignment: .leading)
         } else if isUser {
-            Text(message.text)
-                .textSelection(.enabled)
+            Text(displayText)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
                 .foregroundStyle(Color.white)
-                .background(tint.gradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .background(tint, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .frame(maxWidth: 640, alignment: .trailing)
-        } else if isLive {
-            Text(streamingText)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .frame(maxWidth: 640, alignment: .leading)
         } else {
-            MarkdownView(text: message.text, onOpenFile: onOpenFile)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .frame(maxWidth: 640, alignment: .leading)
+            // One attributed Text per message (Markdown formatting) — cheap and safe in a
+            // List. While streaming we render plain text so we don't re-parse per token.
+            Group {
+                if isLive {
+                    Text(displayText)
+                } else {
+                    Text(attributedMarkdown(displayText))
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .frame(maxWidth: 640, alignment: .leading)
+            .lineSpacing(3)
         }
     }
 }

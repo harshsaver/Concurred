@@ -49,3 +49,10 @@ struct ModelList: Decodable {
     struct Model: Decodable { let id: String }
     let data: [Model]
 }
+
+/// Some gateways (notably OpenRouter) deliver errors as an SSE event with HTTP 200,
+/// e.g. `data: {"error":{"message":"No endpoints found..."}}`. Decoded to surface them.
+struct StreamErrorEnvelope: Decodable {
+    struct APIError: Decodable { let message: String? }
+    let error: APIError?
+}
