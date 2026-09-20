@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="76" viewBox="0 0 320 76" role="img" aria-labelledby="title desc">
+  <title id="title">Download for Mac</title>
+  <desc id="desc">For Apple Silicon and Intel Macs running macOS 14 or later.</desc>
+  <defs>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#168BFF"/>
+      <stop offset="1" stop-color="#065ED5"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="76" rx="16" fill="url(#blue)"/>
+  <rect x="0.5" y="0.5" width="319" height="75" rx="15.5" fill="none" stroke="#FFF" stroke-opacity="0.2"/>
+  <g fill="none" stroke="#FFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M40 23v23m-8-8 8 8 8-8"/>
+    <path d="M27 47v6h26v-6"/>
+  </g>
+  <g fill="#FFF" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <text x="76" y="34" font-size="21" font-weight="600">Download for Mac</text>
+    <text x="76" y="54" font-size="12">Apple Silicon &amp; Intel · macOS 14+</text>
+  </g>
+</svg>

@@ -6,8 +6,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/harshsaver/Concurred/releases/latest/download/Concurred-macOS.zip"><strong>Download for Mac ↓</strong></a>
-  &nbsp; · &nbsp;
+  <a href="https://github.com/harshsaver/Concurred/releases/latest/download/Concurred-macOS.zip">
+    <img src="docs/assets/download-mac.svg" alt="Download for Mac — Apple Silicon &amp; Intel, macOS 14+" width="320" height="76">
+  </a>
+  <br>
+  <sub>Notarized by Apple. Ready to chat.</sub>
+</p>
+
+<p align="center">
   <a href="#cloak-on-share-less"><strong>Meet Cloak</strong></a>
   &nbsp; · &nbsp;
   <a href="#say-hello">Start chatting</a>
