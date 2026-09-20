@@ -23,9 +23,26 @@ struct SettingsForm: View {
 
     var body: some View {
         Form {
-            Section {
-                Text("API keys are stored in your macOS Keychain. Open a provider or choose Load saved key to use an existing key. Each key is sent only to its provider.")
+            Section("API key storage") {
+                Picker("Save keys in", selection: Binding(
+                    get: { store.keyStorage },
+                    set: { KeychainAccessPrompt.changeStorage(to: $0, in: store) }
+                )) {
+                    ForEach(KeyStorageMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                Text(store.keyStorage == .keychain
+                     ? "Keychain protects your API keys. macOS may ask for your login password; choose Always Allow when offered to remember access."
+                     : "No Keychain prompts. API keys are saved in an unencrypted file on this Mac, accessible to your macOS account.")
                     .font(.callout).foregroundStyle(.secondary)
+                Text("Each key is sent only to its provider. Switching storage keeps the two sets of keys separate; enter or load your keys in the selected location.")
+                    .font(.caption).foregroundStyle(.secondary)
+                if store.keyStorage == .keychain {
+                    Button("Why does macOS ask for my password?") {
+                        KeychainAccessPrompt.authorize(in: store, explainAgain: true)
+                    }
+                }
             }
             ForEach(Provider.all) { provider in
                 Section {
@@ -38,8 +55,8 @@ struct SettingsForm: View {
                         .accessibilityLabel("\(provider.name) API key")
                         .onSubmit { save(provider) }
                         if !store.hasLoadedKey(for: provider) || store.keyError(for: provider) != nil {
-                            Button(store.keyError(for: provider) == nil ? "Load saved key" : "Retry Keychain access") {
-                                store.reloadKey(for: provider)
+                            Button(store.keyError(for: provider) == nil ? "Load saved key" : "Retry key access") {
+                                KeychainAccessPrompt.loadKey(for: provider, in: store, retry: true)
                                 if store.keyError(for: provider) == nil {
                                     drafts[provider.id] = store.apiKey(for: provider) ?? ""
                                     errors[provider.id] = nil
@@ -67,6 +84,7 @@ struct SettingsForm: View {
         }
         .formStyle(.grouped)
         .onAppear(perform: loadDrafts)
+        .onChange(of: store.keyStorage) { loadDrafts(); errors.removeAll() }
     }
 
     private func trimmed(_ provider: Provider) -> String {
@@ -83,14 +101,19 @@ struct SettingsForm: View {
         for provider in Provider.all { drafts[provider.id] = store.apiKey(for: provider) ?? "" }
     }
     private func save(_ provider: Provider) {
-        guard !trimmed(provider).isEmpty else { return }
+        let value = trimmed(provider)
+        guard !value.isEmpty, KeychainAccessPrompt.authorize(in: store) else { return }
         do {
-            try store.setKey(trimmed(provider), for: provider)
+            try store.setKey(value, for: provider)
             drafts[provider.id] = store.apiKey(for: provider) ?? ""
             errors[provider.id] = nil
         } catch { errors[provider.id] = error.localizedDescription }
     }
     private func clear(_ provider: Provider) {
+        let originalStorage = store.keyStorage
+        guard KeychainAccessPrompt.authorize(in: store) else { return }
+        // Choosing a different store is not permission to delete a key in that store.
+        guard store.keyStorage == originalStorage else { return }
         do {
             try store.setKey(nil, for: provider)
             drafts[provider.id] = ""

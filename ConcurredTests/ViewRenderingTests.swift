@@ -7,7 +7,7 @@ import XCTest
 @MainActor
 final class ViewRenderingTests: XCTestCase {
     func testHomeAndSettingsRenderAtSupportedSizes() throws {
-        let appStore = AppStore(secrets: MemorySecrets())
+        let appStore = AppStore(secrets: MemorySecrets(), defaults: isolatedKeyDefaults())
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("ConcurredViewTests-\(UUID())/chats.json")
         let conversations = ConversationStore(fileURL: url)
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
@@ -25,7 +25,7 @@ final class ViewRenderingTests: XCTestCase {
 
     func testChatComposerRendersAtMinimumWidth() throws {
         let secrets = MemorySecrets()
-        let appStore = AppStore(secrets: secrets)
+        let appStore = AppStore(secrets: secrets, defaults: isolatedKeyDefaults())
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("ConcurredViewTests-\(UUID())/chats.json")
         let store = ConversationStore(fileURL: url)
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
@@ -56,7 +56,7 @@ final class ViewRenderingTests: XCTestCase {
     }
 
     func testEmptyConversationRendersAtMinimumAndWideSizes() throws {
-        let appStore = AppStore(secrets: MemorySecrets())
+        let appStore = AppStore(secrets: MemorySecrets(), defaults: isolatedKeyDefaults())
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("ConcurredViewTests-\(UUID())/chats.json")
         let store = ConversationStore(fileURL: url)
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
@@ -77,7 +77,7 @@ final class ViewRenderingTests: XCTestCase {
     func testCloakReviewAndMultilineComposerRender() throws {
         let review = CloakReview(original: [WireMessage(role: "user", content: "Clara Barton owns 60%. Contact clara@example.org.")], identity: .empty, vault: .init())
         try render(CloakReviewSheet(review: review, usesSearch: true, onSend: { _ in }), name: "cloak-review", width: 700, height: 650)
-        let appStore = AppStore(secrets: MemorySecrets())
+        let appStore = AppStore(secrets: MemorySecrets(), defaults: isolatedKeyDefaults())
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("ConcurredViewTests-\(UUID())/chats.json")
         let store = ConversationStore(fileURL: url)
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }

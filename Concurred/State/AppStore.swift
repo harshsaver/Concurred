@@ -11,12 +11,44 @@ final class AppStore {
     var path: [Route] = []
     var showSettings = false
     private let secrets: SecretStore
+    private let localSecrets: SecretStore
+    private let defaults: UserDefaults
+    private(set) var keyStorage: KeyStorageMode
+    private(set) var hasExplainedKeychain: Bool
     private var keys: [String: String] = [:]
     private var loadedProviders: Set<String> = []
     private var keyErrors: [String: String] = [:]
 
-    init(secrets: SecretStore = KeychainSecretStore()) {
+    init(secrets: SecretStore = KeychainSecretStore(),
+         localSecrets: SecretStore = LocalSecretStore(), defaults: UserDefaults = .standard) {
         self.secrets = secrets
+        self.localSecrets = localSecrets
+        self.defaults = defaults
+        keyStorage = KeyStorageMode(rawValue: defaults.string(forKey: "keyStorage") ?? "") ?? .keychain
+        hasExplainedKeychain = defaults.bool(forKey: "hasExplainedKeychain")
+    }
+
+    var needsKeychainExplanation: Bool { keyStorage == .keychain && !hasExplainedKeychain }
+    private var activeSecrets: SecretStore { keyStorage == .keychain ? secrets : localSecrets }
+
+    func acknowledgeKeychainExplanation() {
+        hasExplainedKeychain = true
+        defaults.set(true, forKey: "hasExplainedKeychain")
+    }
+
+    /// Stores are independent. Switching never unlocks, copies, or deletes keys.
+    func changeKeyStorage(to mode: KeyStorageMode) {
+        guard mode != keyStorage else { return }
+        keyStorage = mode
+        defaults.set(mode.rawValue, forKey: "keyStorage")
+        keys.removeAll()
+        loadedProviders.removeAll()
+        keyErrors.removeAll()
+    }
+
+    func cancelKeyLoading(for provider: Provider) {
+        loadedProviders.insert(provider.id)
+        keyErrors[provider.id] = "Key access was cancelled. Retry when you're ready, or choose local storage in Settings."
     }
 
     func loadKeyIfNeeded(for provider: Provider) {
@@ -29,7 +61,7 @@ final class AppStore {
         // and never retry a denied Keychain request until the user asks.
         loadedProviders.insert(provider.id)
         do {
-            keys[provider.id] = try secrets.value(for: provider.id)
+            keys[provider.id] = try activeSecrets.value(for: provider.id)
             keyErrors[provider.id] = nil
         } catch {
             keyErrors[provider.id] = error.localizedDescription
@@ -44,7 +76,7 @@ final class AppStore {
     func setKey(_ value: String?, for provider: Provider) throws {
         let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
         let key = trimmed?.isEmpty == false ? trimmed : nil
-        try secrets.set(key, for: provider.id)
+        try activeSecrets.set(key, for: provider.id)
         keys[provider.id] = key
         loadedProviders.insert(provider.id)
         keyErrors[provider.id] = nil

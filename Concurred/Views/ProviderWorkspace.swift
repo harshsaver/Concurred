@@ -32,7 +32,9 @@ struct ProviderWorkspace: View {
         }
         .disabled(conversations.isReadBlocked)
         .navigationTitle(provider.name)
-        .task(id: provider.id) { appStore.loadKeyIfNeeded(for: provider) }
+        .task(id: "\(provider.id)-\(appStore.keyStorage.rawValue)") {
+            KeychainAccessPrompt.loadKey(for: provider, in: appStore)
+        }
     }
 
     @ViewBuilder

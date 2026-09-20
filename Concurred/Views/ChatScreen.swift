@@ -311,15 +311,17 @@ struct MissingKeyView: View {
             Image(systemName: "key.fill")
                 .font(.system(size: 34))
                 .foregroundStyle(provider.tint)
-            Text(store.keyError(for: provider) == nil ? "Add your \(provider.name) API key" : "Allow access to your \(provider.name) key")
+            Text(store.keyError(for: provider) == nil ? "Add your \(provider.name) API key" : "Couldn't load your \(provider.name) key")
                 .font(.title3.weight(.semibold))
-            Text(store.keyError(for: provider) ?? "Concurred needs an API key to talk to \(provider.name). Keys are stored securely in your macOS Keychain.")
+            Text(store.keyError(for: provider) ?? "Concurred needs an API key to talk to \(provider.name). Add it in Settings. Storage: \(store.keyStorage.title).")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 400)
             if store.keyError(for: provider) != nil {
-                Button("Retry Keychain access") { store.reloadKey(for: provider) }
+                Button("Retry key access") {
+                    KeychainAccessPrompt.loadKey(for: provider, in: store, retry: true)
+                }
             }
             Button {
                 store.showSettings = true

@@ -80,7 +80,7 @@ final class StoreTests: XCTestCase {
 
     func testKeyWritesTrimWhitespaceAndOnlyUpdateStateOnSuccess() throws {
         let secrets = MemorySecrets()
-        let store = AppStore(secrets: secrets)
+        let store = AppStore(secrets: secrets, defaults: isolatedKeyDefaults())
         try store.setKey("  first\n", for: .openrouter)
         XCTAssertEqual(store.apiKey(for: .openrouter), "first")
         store.loadKeyIfNeeded(for: .openrouter)
@@ -96,7 +96,7 @@ final class StoreTests: XCTestCase {
     func testKeysLoadOnlyForRequestedProviderAndReuseCachedValue() {
         let secrets = MemorySecrets()
         secrets.values[Provider.openrouter.id] = "saved-key"
-        let store = AppStore(secrets: secrets)
+        let store = AppStore(secrets: secrets, defaults: isolatedKeyDefaults())
         XCTAssertTrue(secrets.reads.isEmpty, "Launching the app must not request Keychain access")
         XCTAssertFalse(store.hasLoadedKey(for: .openrouter))
 
@@ -117,7 +117,7 @@ final class StoreTests: XCTestCase {
         let secrets = MemorySecrets()
         secrets.values[Provider.openrouter.id] = "saved-key"
         secrets.failReads.insert(Provider.openrouter.id)
-        let store = AppStore(secrets: secrets)
+        let store = AppStore(secrets: secrets, defaults: isolatedKeyDefaults())
         store.loadKeyIfNeeded(for: .openrouter)
         store.loadKeyIfNeeded(for: .openrouter)
         XCTAssertEqual(secrets.reads.count, 1)
@@ -141,6 +141,7 @@ final class MemorySecrets: SecretStore, @unchecked Sendable {
     var values: [String: String] = [:]
     var failWrites = false
     var reads: [String] = []
+    var writes: [String] = []
     var failReads: Set<String> = []
     func value(for key: String) throws -> String? {
         reads.append(key)
@@ -148,7 +149,12 @@ final class MemorySecrets: SecretStore, @unchecked Sendable {
         return values[key]
     }
     func set(_ value: String?, for key: String) throws {
+        writes.append(key)
         if failWrites { throw CocoaError(.fileWriteNoPermission) }
         values[key] = value
     }
+}
+
+func isolatedKeyDefaults() -> UserDefaults {
+    UserDefaults(suiteName: "ConcurredTests-\(UUID().uuidString)")!
 }
