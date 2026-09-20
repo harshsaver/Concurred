@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <a href="https://concurred.ai/"><strong>Meet Concurred ↗</strong></a>
+  <a href="https://github.com/harshsaver/Concurred/releases/latest/download/Concurred-macOS.zip"><strong>Download for Mac ↓</strong></a>
   &nbsp; · &nbsp;
   <a href="#cloak-on-share-less"><strong>Meet Cloak</strong></a>
   &nbsp; · &nbsp;
@@ -88,21 +88,30 @@ Your choice of provider. Your choice of model. One place to chat.
 
 **Bring the web along.** Add search results to your question when you need more context. Web search uses a separately installed TinyFish tool.
 
-**Keep the familiar comforts.** Keys in macOS Keychain. Chat history on your Mac. Alt ID opens without a password. [How your data is stored](docs/GUIDE.md#storage-and-errors).
+**Keep the familiar comforts.** Keys in macOS Keychain by default, with a local storage option for no Keychain prompts. Chat history on your Mac. Alt ID opens without a password. [How your data is stored](docs/GUIDE.md#storage-and-errors).
 
 <br clear="all">
 
 ## Say hello.
 
-**Mac running macOS 14+ · Your own provider API key**
+**macOS 14+ · Apple Silicon & Intel · Your own provider API key**
 
-1. [Build Concurred](docs/GUIDE.md#run) and open it.
+1. [Download Concurred](https://github.com/harshsaver/Concurred/releases/latest/download/Concurred-macOS.zip), unzip it, and move the app to **Applications**.
 2. Add your API key in **Settings**.
 3. Choose a provider and model. Send your first message.
 
 Want to share less from the start? Save your details in **Alt ID** and switch on **Cloak** before sending.
 
-Currently available as source code; building needs Xcode 16+. Model access and charges come from your provider.
+Signed with Developer ID and notarized by Apple. Model access and charges come from your provider. Prefer to build it yourself? [Here’s how](docs/GUIDE.md#run).
+
+<details>
+<summary>Why does macOS ask for my password?</summary>
+
+macOS may ask before letting Concurred use an API key saved in Keychain. Choose **Always Allow**, when offered, to remember access for that provider. Concurred never sees your Mac password.
+
+Prefer no Keychain prompts? Open **Settings → API key storage** and choose **Local file**. Keys will be saved in an unencrypted file on your Mac. Enter your API keys again after switching; existing Keychain keys stay where they are.
+
+</details>
 
 <p align="center">
   <strong>Something on your mind?</strong><br>

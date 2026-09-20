@@ -3,11 +3,21 @@
 [← Back to the overview](../README.md)
 
 A native macOS chat app for OrcaRouter, OpenRouter, Featherless, and Concurred.
-Requires macOS 14 or later and Xcode 16 or later. No third-party Swift packages.
+Requires macOS 14 or later. Universal releases run on Apple Silicon and Intel Macs.
+Building from source requires Xcode 16 or later. No third-party Swift packages.
+
+## Install
+
+1. [Download the latest Mac release](https://github.com/harshsaver/Concurred/releases/latest/download/Concurred-macOS.zip).
+2. Unzip the download and move **Concurred.app** into **Applications**.
+3. Open Concurred, add a provider API key in **Settings**, and choose a model.
+
+The release is Developer ID signed and notarized by Apple. You do not need Xcode
+to use it. Release notes and checksums are on the [releases page](https://github.com/harshsaver/Concurred/releases).
 
 ## Run
 
-There is no packaged release yet. Build the app with Xcode 16 or later:
+To build from source with Xcode 16 or later:
 
 1. Download or clone this repository and open `Concurred.xcodeproj`.
 2. On your own Mac, open **Signing & Capabilities** for the app and test targets.
@@ -127,7 +137,8 @@ phrases last for the conversation during the app session; use Alt ID custom pair
 for persistent choices. No local generative model or cloud detector rewrites text.
 
 Cloak is best effort: it can miss personal information and is not an anonymity
-guarantee. API keys are kept in the macOS Keychain. Alt ID opens without a password
+guarantee. API keys use macOS Keychain by default; Settings also offers explicit,
+unencrypted local storage. Alt ID opens without a password
 and is saved in `~/Library/Application Support/dev.october.concord/alt-identity.json`,
 with access restricted to your macOS account. This identity file is not separately
 encrypted by the app. Older identities kept only in Keychain are not automatically
@@ -149,6 +160,33 @@ this proxy. Provider redirects are rejected to avoid forwarding credentials or
 conversation bodies to another endpoint.
 
 ## Storage and errors
+
+### API keys and Mac password prompts
+
+Before the first Keychain action, Concurred explains why macOS may ask for your
+login password. **Use Keychain** keeps encrypted system storage. macOS can offer
+**Always Allow** to remember access to a provider's key; **Allow** grants access
+for that request. The Mac password is entered only in Apple's dialog, never in
+Concurred. [Apple explains these choices](https://support.apple.com/guide/keychain-access/if-youre-asked-for-access-to-your-keychain-kyca1243/mac).
+
+Choose **Use Local Storage** in the explanation, or open **Settings → API key
+storage → Local file (no Keychain prompts)**. This opt-in mode stores keys in:
+
+```text
+~/Library/Application Support/dev.october.concord/provider-keys.json
+```
+
+The file is unencrypted, with owner-only permissions (600) in a private directory
+(700). Local mode does not call Keychain. The app explains this tradeoff before
+switching. The two stores are separate: keys are not copied or deleted when you
+switch. Enter keys again in the selected store, or load keys already saved there.
+Switching clears cached keys and stops any chat request that used them.
+
+The Keychain explanation is remembered after **Use Keychain**. You can reopen it
+from Settings. Cancelling never attempts the Keychain operation. Denied access
+requires an explicit retry; the app does not keep asking in the background.
+
+### Conversation files
 
 Conversations are saved atomically to:
 
@@ -181,7 +219,8 @@ xcodebuild -project Concurred.xcodeproj -scheme Concurred \
 
 `ConcurredTests` covers streaming HTTP/SSE handling, cancellation and retry races,
 cloaking and web-search privacy, network validation, persistence failures, lazy Keychain
-loading and explicit retries, Markdown, and native view rendering. Tests use mock HTTP responses,
+loading and explicit retries, local key storage and file permissions, switching
+storage without copying keys, Markdown, and native view rendering. Tests use mock HTTP responses,
 mock secrets, and temporary conversation files; they do not send paid model requests.
 Native render images are attached to the Xcode test results.
 
