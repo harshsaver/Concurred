@@ -48,6 +48,10 @@ Concurred brings the AI models you choose into a Mac app that feels as easy as s
 
 ## Cloak on. Share less.
 
+<a href="docs/assets/alt-id-cloak.png">
+  <img align="right" src="docs/assets/alt-id-cloak.png" alt="Alt ID with Cloak switched on, the disguised character, and an alternate name, birthday, address, email, and phone number." width="390">
+</a>
+
 Get help with the email, the plan, the first draft. Give the names and personal details a little cover.
 
 Save your real and alternate details in **Alt ID**, then turn on **Cloak**. It swaps matching text before it reaches the AI and restores recognized replacements in the reply.
@@ -62,6 +66,8 @@ Your Cloak replacements apply to web searches, too.
 
 Cloak can miss details. Review sensitive text before sending. Your saved chats keep the originals. [More about Cloak](docs/GUIDE.md#optional-web-search-and-cloak).
 
+<br clear="all">
+
 ## Keep the good conversations going.
 
 Pick up yesterday’s idea. Start something new. Your chats save on your Mac, ready when you come back.
@@ -74,11 +80,17 @@ Your choice of provider. Your choice of model. One place to chat.
 
 ## A few thoughtful extras.
 
-**Bring the web along.** Add search results to your question when you need more context. Web search uses a separately installed TinyFish tool.
+<a href="docs/assets/network-panel.png">
+  <img align="right" src="docs/assets/network-panel.png" alt="The Network panel with Chrome on Android selected, an Android phone sending a green beam toward a globe, and proxy controls." width="260">
+</a>
 
 **Make the connection yours.** Choose a User-Agent preset or set a provider proxy. Each device preset gets its own little animated send-off. [Network details](docs/GUIDE.md#optional-web-search-and-cloak).
 
+**Bring the web along.** Add search results to your question when you need more context. Web search uses a separately installed TinyFish tool.
+
 **Keep the familiar comforts.** Keys in macOS Keychain. Chat history on your Mac. Alt ID opens without a password. [How your data is stored](docs/GUIDE.md#storage-and-errors).
+
+<br clear="all">
 
 ## Say hello.
 

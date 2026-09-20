@@ -17,6 +17,11 @@ The chat images are unedited native app renders from
 conversations and mock credentials, with no live chat history or API keys.
 Light and dark previews show different window sizes.
 
+`alt-id-cloak.png` and `network-panel.png` are the user's original, unedited panel
+screenshots supplied for the README. Alt ID shows Cloak on and the alternate
+identity; Network shows the Chrome on Android preset. The README links each
+preview to its full-size image.
+
 ## Banner prompt
 
 ```text
