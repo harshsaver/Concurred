@@ -1,12 +1,14 @@
 ![Concurred — Good things start with a chat.](docs/assets/banner.png)
 
 <p align="center">
-  <strong>A beautiful home for your AI conversations.</strong><br>
-  Big ideas. Quick questions. Everything in between.
+  <strong>Big ideas. Fewer personal details.</strong><br>
+  A beautiful home for your AI conversations. Cloak for the details you’d rather keep to yourself.
 </p>
 
 <p align="center">
   <a href="https://concurred.ai/"><strong>Meet Concurred ↗</strong></a>
+  &nbsp; · &nbsp;
+  <a href="#cloak-on-share-less"><strong>Meet Cloak</strong></a>
   &nbsp; · &nbsp;
   <a href="#say-hello">Start chatting</a>
   &nbsp; · &nbsp;
@@ -15,7 +17,7 @@
 
 Plan a weekend. Untangle a thought. Get past the blank page.
 
-Concurred brings the AI models you choose into a Mac app that feels as easy as sending a message. Settle in. See where the conversation takes you.
+Concurred brings the AI models you choose into a Mac app that feels as easy as sending a message. With **Cloak**, you can give personal details a stand-in before they reach the AI. Bring your question. Share a little less of yourself.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/chat-dark.png">
@@ -27,6 +29,11 @@ Concurred brings the AI models you choose into a Mac app that feels as easy as s
 <table>
   <tr>
     <td width="33%" valign="top">
+      <img src="docs/assets/characters/43.webp" alt="The Cloak character in disguise with binoculars." width="100%">
+      <h3>Your question. Your terms.</h3>
+      <p>Meet Cloak. Hide matching names, emails, and other personal details before you send. Preview what leaves your Mac.</p>
+    </td>
+    <td width="33%" valign="top">
       <img src="docs/assets/characters/25.webp" alt="A cozy character with a laptop and coffee." width="100%">
       <h3>Make yourself at home.</h3>
       <p>Familiar bubbles. Favorite conversations. A little face for every chat. Everything right where you expect it.</p>
@@ -36,13 +43,24 @@ Concurred brings the AI models you choose into a Mac app that feels as easy as s
       <h3>Find your kind of AI.</h3>
       <p>A writing partner. A coding helper. A fresh point of view. Choose your model and change it when you want.</p>
     </td>
-    <td width="33%" valign="top">
-      <img src="docs/assets/characters/43.webp" alt="The Cloak character in disguise with binoculars." width="100%">
-      <h3>Share a little less.</h3>
-      <p>Your question needs an answer. Your name can stay out of it. Cloak helps hide personal details before you send.</p>
-    </td>
   </tr>
 </table>
+
+## Cloak on. Share less.
+
+Get help with the email, the plan, the first draft. Give the names and personal details a little cover.
+
+Save your real and alternate details in **Alt ID**, then turn on **Cloak**. It swaps matching text before it reaches the AI and restores recognized replacements in the reply.
+
+> You write **“I’m Maya.”** The AI sees **“I’m Alex.”**
+>
+> When it says **“Hi Alex,”** you see **“Hi Maya.”**
+
+**See it before you send it.** Open **Review Cloak** to check the outgoing text, hide extra details, and send when it looks right. The review’s suggestions are found on your Mac.
+
+Your Cloak replacements apply to web searches, too.
+
+Cloak can miss details. Review sensitive text before sending. Your saved chats keep the originals. [More about Cloak](docs/GUIDE.md#optional-web-search-and-cloak).
 
 ## Keep the good conversations going.
 
@@ -53,16 +71,6 @@ Watch replies arrive. Stop anytime. Try another answer. Copy the bit you need an
 **OrcaRouter · OpenRouter · Featherless · Concurred**
 
 Your choice of provider. Your choice of model. One place to chat.
-
-## A little mystery looks good on you.
-
-Meet **Cloak**. Give your personal details a stand-in with **Alt ID**, and let the conversation carry on.
-
-You write “I’m Maya.” The AI sees “I’m Alex.” When it says “Hi Alex,” Concurred restores the name you know.
-
-Want a closer look? **Review Cloak** shows what you’re about to send. Check the text, hide more, and hit send when you’re ready.
-
-Cloak can miss details. Review sensitive text before sending. Your saved chats keep the originals. [More about Cloak](docs/GUIDE.md#optional-web-search-and-cloak).
 
 ## A few thoughtful extras.
 
@@ -79,6 +87,8 @@ Cloak can miss details. Review sensitive text before sending. Your saved chats k
 1. [Build Concurred](docs/GUIDE.md#run) and open it.
 2. Add your API key in **Settings**.
 3. Choose a provider and model. Send your first message.
+
+Want to share less from the start? Save your details in **Alt ID** and switch on **Cloak** before sending.
 
 Currently available as source code; building needs Xcode 16+. Model access and charges come from your provider.
 
